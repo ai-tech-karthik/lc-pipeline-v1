@@ -1,15 +1,14 @@
-# Lending Club Data Pipeline
+# LC Data Pipeline
 
 A production-grade data pipeline for processing customer and account data with interest calculations, built with Dagster and DBT.
 
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/)
 [![Dagster](https://img.shields.io/badge/dagster-1.5%2B-orange)](https://dagster.io/)
 [![DBT](https://img.shields.io/badge/dbt-1.6%2B-orange)](https://www.getdbt.com/)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 ## 🎯 Overview
 
-This pipeline processes lending club customer and account data, applies interest calculations, and outputs results in multiple formats (CSV, Parquet, Databricks tables). It supports both local development (DuckDB) and production deployment (Databricks).
+This pipeline processes LC customer and account data, applies interest calculations, and outputs results in multiple formats (CSV, Parquet, Databricks tables). It supports both local development (DuckDB) and production deployment (Databricks).
 
 ### Key Features
 
@@ -50,8 +49,8 @@ CSV Files → Ingestion → DBT Transformations → Outputs
 
 ```bash
 # Clone repository
-git clone https://github.com/YOUR_USERNAME/lending-club-pipeline.git
-cd lending-club-pipeline
+git clone https://github.com/ai-tech-karthik/lc-pipeline-v1
+cd lc-pipeline-v1
 
 # Create virtual environment
 python -m venv venv
@@ -71,6 +70,18 @@ cp .env.example .env
 # Configure for DuckDB
 export DATABASE_TYPE=duckdb
 export DBT_TARGET=dev
+export DAGSTER_HOME=$(pwd)/dagster_home
+
+# Run pipeline
+dagster asset materialize --select '*' -m src.lending_club_pipeline.definitions
+```
+
+### Run Production (Databricks)
+
+```bash
+# Configure for Databricks
+export DATABASE_TYPE=databricks
+export DBT_TARGET=prod
 export DAGSTER_HOME=$(pwd)/dagster_home
 
 # Run pipeline
@@ -143,7 +154,6 @@ Comprehensive documentation is available in the repository:
 - **[Pipeline Execution Guide](PIPELINE_EXECUTION_GUIDE.md)** - Detailed execution instructions
 - **[Docker Testing Guide](DOCKER_DAGSTER_UI_TESTING_GUIDE.md)** - Docker and UI testing
 - **[Databricks Setup](DATABRICKS_SETUP_CHECKLIST.md)** - Databricks configuration
-- **[Project Completion Summary](PROJECT_COMPLETION_SUMMARY.md)** - Full project overview
 
 ## 🔧 Configuration
 
@@ -169,15 +179,6 @@ DATABRICKS_SCHEMA=default
 DATABRICKS_HTTP_PATH=/sql/1.0/warehouses/your-warehouse-id
 ```
 
-## 📊 Performance
-
-| Environment | Duration | Use Case |
-|-------------|----------|----------|
-| **DuckDB** | ~20s | Local development, testing |
-| **Databricks** | ~95s | Production, large datasets |
-| **Docker + DuckDB** | ~40s | Containerized development |
-| **Docker + Databricks** | ~95s | Containerized production |
-
 ## 🛠️ Technology Stack
 
 - **Orchestration:** Dagster 1.5.0+
@@ -187,33 +188,3 @@ DATABRICKS_HTTP_PATH=/sql/1.0/warehouses/your-warehouse-id
 - **Containerization:** Docker, Docker Compose
 - **Storage:** PostgreSQL (metadata), DuckDB/Databricks (data)
 
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- [Dagster](https://dagster.io/) - Data orchestration platform
-- [DBT](https://www.getdbt.com/) - Data transformation tool
-- [DuckDB](https://duckdb.org/) - In-process SQL database
-- [Databricks](https://databricks.com/) - Cloud data platform
-
-## 📧 Contact
-
-For questions or support, please open an issue in the GitHub repository.
-
----
-
-**Status:** ✅ Production Ready  
-**Last Updated:** October 31, 2025  
-**Version:** 1.0.0
