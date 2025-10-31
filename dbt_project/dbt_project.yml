@@ -1,0 +1,64 @@
+# DBT Project Configuration
+# This file defines the project structure and model configurations
+
+name: 'lending_club_pipeline'
+version: '1.0.0'
+config-version: 2
+
+# Project profile (must match profile name in profiles.yml)
+profile: 'lending_club_pipeline'
+
+# Directories
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+# Build artifacts
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+  - "logs"
+
+# Model configurations
+models:
+  lending_club_pipeline:
+    # Staging layer: Light transformations, one model per source
+    # Materialized as views for no storage overhead and always fresh data
+    staging:
+      +materialized: view
+      +schema: staging
+      
+    # Intermediate layer: Business logic, joins, filters
+    # Materialized as ephemeral (computed on-the-fly, not stored)
+    intermediate:
+      +materialized: ephemeral
+      +schema: intermediate
+      
+    # Marts layer: Final business-ready outputs
+    # Materialized as tables for query performance
+    marts:
+      +materialized: table
+      +schema: marts
+
+# Seeds configuration
+seeds:
+  lending_club_pipeline:
+    +schema: seeds
+
+# Snapshots configuration
+snapshots:
+  lending_club_pipeline:
+    +schema: snapshots
+
+# Documentation
+docs-paths: ["docs"]
+
+# Quoting configuration
+quoting:
+  database: false
+  schema: false
+  identifier: false

@@ -1,0 +1,53 @@
+version: 2
+
+models:
+  - name: account_summary
+    description: >
+      Final account summary with calculated interest rates and projected balances.
+      This mart provides business-ready data for reporting and analysis of savings
+      accounts with interest projections based on balance tiers and customer loan status.
+      
+      Interest Rate Logic:
+      - Base rate by balance: <$10k=1%, $10k-$20k=1.5%, >=$20k=2%
+      - Bonus rate: +0.5% for customers with loans (has_loan='Yes')
+      - Annual interest is calculated as balance * total_interest_rate
+      - New balance is the sum of original balance and annual interest
+      
+    columns:
+      - name: customer_id
+        description: Unique identifier for the customer (foreign key to customers)
+        tests:
+          - not_null
+          
+      - name: account_id
+        description: Unique identifier for the savings account
+        tests:
+          - not_null
+          - unique
+          
+      - name: original_balance
+        description: Current account balance before interest calculation (in dollars)
+        tests:
+          - not_null
+          
+      - name: interest_rate
+        description: >
+          Total annual interest rate applied to the account (base rate + bonus rate).
+          Expressed as a decimal (e.g., 0.015 = 1.5%).
+          Valid range: 0.01 (1%) to 0.025 (2.5%)
+        tests:
+          - not_null
+          
+      - name: annual_interest
+        description: >
+          Calculated annual interest amount in dollars, rounded to 2 decimal places.
+          Formula: original_balance * interest_rate
+        tests:
+          - not_null
+          
+      - name: new_balance
+        description: >
+          Projected account balance after one year of interest accrual, rounded to 2 decimal places.
+          Formula: original_balance + annual_interest
+        tests:
+          - not_null

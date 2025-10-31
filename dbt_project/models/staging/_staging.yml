@@ -1,0 +1,56 @@
+version: 2
+
+models:
+  - name: stg_customers__cleaned
+    description: >
+      Cleaned and normalized customer data from the raw Customer.csv source.
+      This staging model performs basic data cleaning operations including
+      whitespace trimming, type casting, and value normalization. The string
+      'None' in HasLoan is converted to NULL to properly represent unknown values.
+    columns:
+      - name: customer_id
+        description: Unique identifier for each customer (trimmed and cast to integer)
+        tests:
+          - unique
+          - not_null
+      
+      - name: name
+        description: Customer name (trimmed and normalized to lowercase)
+        tests:
+          - not_null
+      
+      - name: has_loan
+        description: Indicates whether the customer has an active loan ('Yes', 'No', or NULL for unknown)
+        tests:
+          - accepted_values:
+              values: ['Yes', 'No']
+
+  - name: stg_accounts__cleaned
+    description: >
+      Cleaned and normalized account data from the raw accounts.csv source.
+      This staging model performs data cleaning operations including whitespace
+      trimming, type casting, value normalization, and filtering out records
+      with null or empty balance values.
+    columns:
+      - name: account_id
+        description: Unique identifier for each account (trimmed)
+        tests:
+          - unique
+          - not_null
+      
+      - name: customer_id
+        description: Foreign key to customer (trimmed and cast to integer)
+        tests:
+          - not_null
+      
+      - name: balance
+        description: Account balance (cast to decimal, null values filtered out)
+        tests:
+          - not_null
+      
+      - name: account_type
+        description: Type of account (normalized to proper case)
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Savings', 'Checking']

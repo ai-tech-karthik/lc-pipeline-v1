@@ -1,0 +1,55 @@
+version: 2
+
+models:
+  - name: int_accounts__with_customer
+    description: >
+      Intermediate model that joins account records with customer information.
+      This model establishes the relationship between accounts and customers,
+      enabling customer-context analysis and downstream interest rate calculations.
+      
+      Uses INNER JOIN to ensure only accounts with valid customer records are
+      included in downstream processing. Materialized as ephemeral to avoid
+      unnecessary storage while providing a reusable component for multiple marts.
+    columns:
+      - name: account_id
+        description: Unique identifier for the account
+      
+      - name: customer_id
+        description: Foreign key linking to the customer who owns this account
+      
+      - name: balance
+        description: Current account balance in decimal format
+      
+      - name: account_type
+        description: Type of account (Savings or Checking)
+      
+      - name: has_loan
+        description: >
+          Indicates whether the customer has an active loan.
+          Used in downstream calculations to determine interest rate bonuses.
+          Values: 'Yes', 'No', 'None'
+
+  - name: int_savings_accounts_only
+    description: >
+      Intermediate model that filters accounts to include only savings accounts.
+      This model focuses the dataset on the specific account type relevant for
+      interest rate calculations and savings account analysis.
+      
+      Filters out checking accounts by applying WHERE account_type = 'Savings'.
+      Materialized as ephemeral to avoid unnecessary storage while providing
+      a focused dataset for the marts layer.
+    columns:
+      - name: account_id
+        description: Unique identifier for the savings account
+      
+      - name: customer_id
+        description: Foreign key linking to the customer who owns this savings account
+      
+      - name: balance
+        description: Current savings account balance in decimal format
+      
+      - name: has_loan
+        description: >
+          Indicates whether the customer has an active loan.
+          Used in interest rate calculations to determine bonus rates.
+          Values: 'Yes', 'No', 'None'
