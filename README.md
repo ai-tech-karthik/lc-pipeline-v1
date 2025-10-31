@@ -152,8 +152,6 @@ Comprehensive documentation is available in the repository:
 
 - **[Quick Start Guide](QUICK_START.md)** - Get started quickly
 - **[Pipeline Execution Guide](PIPELINE_EXECUTION_GUIDE.md)** - Detailed execution instructions
-- **[Docker Testing Guide](DOCKER_DAGSTER_UI_TESTING_GUIDE.md)** - Docker and UI testing
-- **[Databricks Setup](DATABRICKS_SETUP_CHECKLIST.md)** - Databricks configuration
 
 ## 🔧 Configuration
 

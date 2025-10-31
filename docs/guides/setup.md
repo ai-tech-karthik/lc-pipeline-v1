@@ -307,23 +307,6 @@ After successful setup:
 4. **Customize Pipeline**: Modify assets and transformations
 5. **Set Up Schedules**: Configure automated runs
 
-## Production Setup
-
-For production deployment, see:
-- [Deployment Guide](deployment.md) - Production deployment instructions
-- [Configuration Guide](configuration.md) - Advanced configuration options
-- [Security Guide](security.md) - Security best practices
-
-## Getting Help
-
-If you encounter issues:
-
-1. Check the [Troubleshooting](#troubleshooting) section above
-2. Review logs: `docker-compose logs -f`
-3. Check Dagster documentation: https://docs.dagster.io
-4. Check DBT documentation: https://docs.getdbt.com
-5. Open an issue in the project repository
-
 ## Cleanup
 
 To stop and remove all services:

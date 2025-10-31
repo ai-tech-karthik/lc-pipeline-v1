@@ -178,10 +178,5 @@ RESULTS: 3-4 passed, 0 failed, 0-1 skipped
 ## Additional Resources
 
 - **Full Guide:** `PIPELINE_EXECUTION_GUIDE.md`
-- **Test Results:** `SMOKE_TEST_RESULTS.md` and `SMOKE_TEST_RESULTS_DUCKDB.md`
-- **Databricks Setup:** `DATABRICKS_SETUP_CHECKLIST.md`
-- **Summary:** `FINAL_TESTING_SUMMARY.md`
 
 ---
-
-**Need Help?** See `PIPELINE_EXECUTION_GUIDE.md` for detailed troubleshooting.

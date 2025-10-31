@@ -341,4 +341,3 @@ After successful validation:
 - [Setup Guide](setup.md) - Initial setup instructions
 - [Development Guide](development.md) - Development workflow
 - [Scripts README](../../scripts/README.md) - Detailed script documentation
-- [Validation Quick Reference](../../VALIDATION_GUIDE.md) - Quick reference guide

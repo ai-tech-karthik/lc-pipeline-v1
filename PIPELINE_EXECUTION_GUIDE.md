@@ -111,7 +111,6 @@ DAGSTER_HOME=/absolute/path/to/lc-pipeline-v1/dagster_home
 **Important Notes:**
 - Use **absolute paths** for `DUCKDB_PATH` and `DAGSTER_HOME`
 - Never commit `.env` file with real credentials to version control
-- For Databricks setup, see `DATABRICKS_SETUP_CHECKLIST.md`
 
 ### 5. Create Required Directories
 ```bash
@@ -204,7 +203,7 @@ RESULTS: 3 passed, 0 failed, 1 skipped
 ## Running the Pipeline - Databricks (Production)
 
 ### Step 1: Configure Databricks
-1. Follow the setup instructions in `DATABRICKS_SETUP_CHECKLIST.md`
+1. Follow the setup instructions in `docs/guides/databricks-setup.md`
 2. Ensure your Databricks workspace is configured with:
    - SQL Warehouse created and running
    - Catalog and schema created
@@ -475,22 +474,7 @@ DBT runs 21 tests automatically:
 
 ## Additional Resources
 
-- **Databricks Setup:** See `DATABRICKS_SETUP_CHECKLIST.md`
-- **Smoke Test Results:** See `SMOKE_TEST_RESULTS.md`
 - **DBT Documentation:** Run `dbt docs generate && dbt docs serve` in `dbt_project/`
 - **Dagster UI:** Run `dagster dev -m src.lending_club_pipeline.definitions` for web interface
 
 ---
-
-## Support
-
-For issues or questions:
-1. Check the [Troubleshooting](#troubleshooting) section
-2. Review logs in `dbt_project/target/dbt.log`
-3. Check Dagster logs in `dagster_home/`
-4. Verify environment configuration in `.env`
-
----
-
-**Last Updated:** October 30, 2025  
-**Pipeline Version:** 1.0.0
