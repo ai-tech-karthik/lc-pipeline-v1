@@ -31,7 +31,7 @@ ENV/
 env/
 
 # DBT
-dbt_project/target/
+dbt_project/target/dbt_*
 dbt_project/logs/
 dbt_project/dbt_packages/
 

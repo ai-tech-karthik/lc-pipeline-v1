@@ -37,6 +37,10 @@ CSV Files → Ingestion → DBT Transformations → Outputs
 - `account_summary_parquet` - Parquet export
 - `account_summary_to_databricks` - Databricks table load
 
+### Dagster UI - Asset Lineage
+
+![Dagster UI Assets](lc-dagster-ui-asserts.png)
+
 ## 🚀 Quick Start
 
 ### Prerequisites
