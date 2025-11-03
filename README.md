@@ -324,27 +324,46 @@ open http://localhost:3000
 # Click "Materialize all" in the UI
 ```
 
+### Run DBT Pipeline Directly
+
+```bash
+# Export environment variables from .env file
+export $(cat .env | grep -v '^#' | xargs)
+
+# Run all models
+dbt run --target prod --project-dir dbt_project --profiles-dir dbt_project
+
+# Run snapshots (SCD2 historical tracking)
+dbt snapshot --target prod --project-dir dbt_project --profiles-dir dbt_project
+
+# Run all tests
+dbt test --target prod --project-dir dbt_project --profiles-dir dbt_project
+
+# Complete pipeline (all steps)
+dbt run --target prod --project-dir dbt_project --profiles-dir dbt_project && \
+dbt snapshot --target prod --project-dir dbt_project --profiles-dir dbt_project && \
+dbt test --target prod --project-dir dbt_project --profiles-dir dbt_project
+```
+
 ### Run Snapshots and Incremental Loads
 
 ```bash
+# Export environment variables first
+export $(cat .env | grep -v '^#' | xargs)
+
 # Initial full load (first time)
-cd dbt_project
-dbt run --full-refresh --profiles-dir .
-dbt snapshot --profiles-dir .
+dbt run --full-refresh --target prod --project-dir dbt_project --profiles-dir dbt_project
+dbt snapshot --target prod --project-dir dbt_project --profiles-dir dbt_project
 
-# Incremental load (subsequent runs)
-dbt snapshot --profiles-dir .  # Capture changes with SCD2
-dbt run --profiles-dir .       # Process only changed data
-
-# Force full refresh (when needed)
-dbt run --full-refresh --select account_summary --profiles-dir .
+# Incremental load (subsequent runs - faster)
+dbt run --target prod --project-dir dbt_project --profiles-dir dbt_project
+dbt snapshot --target prod --project-dir dbt_project --profiles-dir dbt_project
 
 # Run specific layer
-dbt run --select source --profiles-dir .      # Source layer only
-dbt run --select staging --profiles-dir .     # Staging layer only
-dbt snapshot --profiles-dir .                 # Snapshots only
-dbt run --select intermediate --profiles-dir . # Intermediate layer only
-dbt run --select marts --profiles-dir .       # Marts layer only
+dbt run --select source --target prod --project-dir dbt_project --profiles-dir dbt_project
+dbt run --select staging --target prod --project-dir dbt_project --profiles-dir dbt_project
+dbt run --select intermediate --target prod --project-dir dbt_project --profiles-dir dbt_project
+dbt run --select marts --target prod --project-dir dbt_project --profiles-dir dbt_project
 ```
 
 ### View Data Quality Reports

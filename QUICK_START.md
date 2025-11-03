@@ -103,8 +103,20 @@ dagster asset materialize --select 'customers_raw' -m src.lending_club_pipeline.
 
 ### Run DBT Only
 ```bash
-cd dbt_project
-dbt build --target dev  # or prod
+# Export environment variables
+export $(cat .env | grep -v '^#' | xargs)
+
+# Run all models
+dbt run --target prod --project-dir dbt_project --profiles-dir dbt_project
+
+# Run snapshots
+dbt snapshot --target prod --project-dir dbt_project --profiles-dir dbt_project
+
+# Run tests
+dbt test --target prod --project-dir dbt_project --profiles-dir dbt_project
+
+# Or run everything with dbt build
+dbt build --target prod --project-dir dbt_project --profiles-dir dbt_project
 ```
 
 ### Check DuckDB Tables
