@@ -6,9 +6,8 @@ A production-grade data pipeline for processing customer and account data with i
 [![Dagster](https://img.shields.io/badge/dagster-1.5%2B-orange)](https://dagster.io/)
 [![DBT](https://img.shields.io/badge/dbt-1.6%2B-orange)](https://www.getdbt.com/)
 [![AI](https://img.shields.io/badge/Built%20with-Claude%20AI-blueviolet)](https://www.anthropic.com/claude)
-[![IDE](https://img.shields.io/badge/Developed%20in-Kiro-blue)](https://kiro.ai/)
 
-> **Note:** This project was developed using AI-assisted development with **Claude (Anthropic)** via **Kiro IDE**, demonstrating modern AI-powered software engineering practices including vibe coding, iterative refinement, and comprehensive testing.
+> **Note:** This project was developed using AI-assisted development with **Claude (Anthropic)**.
 
 ## 🎯 Overview
 
