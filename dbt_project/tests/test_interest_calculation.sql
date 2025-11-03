@@ -16,10 +16,10 @@ with account_summary as (
     select
         customer_id,
         account_id,
-        original_balance,
-        interest_rate,
-        annual_interest,
-        new_balance
+        original_balance_amount,
+        interest_rate_pct,
+        annual_interest_amount,
+        new_balance_amount
     from {{ ref('account_summary') }}
 ),
 
@@ -29,19 +29,19 @@ validation_checks as (
         
         -- Check 1: Interest rate is within valid range
         case
-            when interest_rate < 0.01 or interest_rate > 0.025 then 1
+            when interest_rate_pct < 0.01 or interest_rate_pct > 0.025 then 1
             else 0
         end as invalid_interest_rate,
         
         -- Check 2: Annual interest calculation is correct (within 0.01 rounding tolerance)
         case
-            when abs(annual_interest - round(original_balance * interest_rate, 2)) > 0.01 then 1
+            when abs(annual_interest_amount - round(original_balance_amount * interest_rate_pct, 2)) > 0.01 then 1
             else 0
         end as invalid_annual_interest,
         
         -- Check 3: New balance calculation is correct (within 0.01 rounding tolerance)
         case
-            when abs(new_balance - round(original_balance + annual_interest, 2)) > 0.01 then 1
+            when abs(new_balance_amount - round(original_balance_amount + annual_interest_amount, 2)) > 0.01 then 1
             else 0
         end as invalid_new_balance
         

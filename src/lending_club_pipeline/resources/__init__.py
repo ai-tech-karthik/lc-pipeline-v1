@@ -6,6 +6,7 @@ from .duckdb_io_manager import DuckDBIOManager
 from .databricks_resource import DatabricksResource
 from .databricks_io_manager import DatabricksIOManager
 from .database_factory import get_database_resource, create_database_resource_from_env
+from .data_quality import DataQualityMonitor, TestResult
 
 __all__ = [
     "DataPlatformConfig",
@@ -15,4 +16,6 @@ __all__ = [
     "DatabricksIOManager",
     "get_database_resource",
     "create_database_resource_from_env",
+    "DataQualityMonitor",
+    "TestResult",
 ]

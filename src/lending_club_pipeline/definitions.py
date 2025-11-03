@@ -28,6 +28,7 @@ from .assets.outputs import (
     account_summary_csv, 
     account_summary_parquet,
     account_summary_to_databricks,
+    data_quality_report,
 )
 
 # Import all resources
@@ -35,6 +36,7 @@ from .resources.duckdb_io_manager import DuckDBIOManager
 from .resources.databricks_io_manager import DatabricksIOManager
 from .resources.databricks_resource import DatabricksResource
 from .resources.config import DataPlatformConfig
+from .resources.data_quality import DataQualityMonitor
 from .io_managers.parquet_manager import ParquetIOManager
 
 # Load configuration from environment
@@ -66,6 +68,9 @@ resources = {
     
     # Parquet IO Manager for efficient file storage
     "parquet_io_manager": ParquetIOManager(output_path=config.output_path),
+    
+    # Data Quality Monitor for tracking and reporting test results
+    "data_quality_monitor": DataQualityMonitor(),
 }
 
 # Add Databricks resource if configured for production
@@ -146,6 +151,7 @@ defs = Definitions(
         account_summary_csv,
         account_summary_parquet,
         account_summary_to_databricks,
+        data_quality_report,
     ],
     resources=resources,
     jobs=[

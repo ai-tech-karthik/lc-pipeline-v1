@@ -1,0 +1,100 @@
+version: 2
+
+models:
+  - name: src_customer
+    description: >
+      Raw customer data persisted without transformation.
+      This is the first layer in the five-layer architecture, capturing data exactly as received from CSV files.
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: customer_id
+        description: Unique identifier for the customer
+        data_type: bigint
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+      
+      - name: name
+        description: Customer name as provided in source file
+        data_type: string
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+      
+      - name: has_loan
+        description: Raw indicator of whether customer has a loan
+        data_type: string
+      
+      - name: loaded_at
+        description: Timestamp when the data was loaded into the source layer
+        data_type: timestamp
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+    
+    tests:
+      - dbt_utils.recency:
+          datepart: day
+          field: loaded_at
+          interval: 7
+          severity: warn
+      - dbt_utils.expression_is_true:
+          expression: "count(*) > 0"
+          config:
+            severity: error
+
+  - name: src_account
+    description: >
+      Raw account data persisted without transformation.
+      This is the first layer in the five-layer architecture, capturing data exactly as received from CSV files.
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: account_id
+        description: Unique identifier for the account
+        data_type: string
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+      
+      - name: customer_id
+        description: Foreign key to customer
+        data_type: bigint
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+      
+      - name: balance
+        description: Account balance
+        data_type: double
+      
+      - name: account_type
+        description: Type of account (e.g., Savings, Checking)
+        data_type: string
+      
+      - name: loaded_at
+        description: Timestamp when the data was loaded into the source layer
+        data_type: timestamp
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+    
+    tests:
+      - dbt_utils.recency:
+          datepart: day
+          field: loaded_at
+          interval: 7
+          severity: warn
+      - dbt_utils.expression_is_true:
+          expression: "count(*) > 0"
+          config:
+            severity: error

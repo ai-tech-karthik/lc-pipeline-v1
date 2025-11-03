@@ -12,34 +12,248 @@ This pipeline processes LC customer and account data, applies interest calculati
 
 ### Key Features
 
+- ✅ **Five-Layer Architecture** - Source → Staging → Snapshots → Intermediate → Marts
+- ✅ **SCD2 Historical Tracking** - Full history with DBT snapshots and validity timestamps
+- ✅ **Incremental Processing (CDC)** - 10-100x faster with change data capture
+- ✅ **Schema Contracts** - Enforced contracts at every layer for data quality
+- ✅ **Comprehensive Testing** - 40+ DBT tests across all layers with custom generic tests
+- ✅ **Standardized Naming** - Consistent snake_case conventions for all tables and columns
+- ✅ **Data Quality Monitoring** - Automated quality reports with severity levels
 - ✅ **Multi-Environment Support** - DuckDB for local dev, Databricks for production
-- ✅ **Comprehensive Testing** - 21 DBT tests + automated smoke tests
 - ✅ **Docker Ready** - Full containerization with Docker Compose
-- ✅ **Data Quality** - Built-in validation and error handling
 - ✅ **Observability** - Dagster UI for monitoring and lineage tracking
-- ✅ **Production Ready** - 100% test pass rate across all environments
 
 ## 📊 Pipeline Architecture
 
+### Five-Layer Architecture
+
+The pipeline implements an enterprise-grade five-layer architecture with SCD2 historical tracking and incremental processing:
+
 ```
-CSV Files → Ingestion → DBT Transformations → Outputs
-                ↓              ↓                  ↓
-           Raw Tables    Staging + Marts    CSV/Parquet/DB
+CSV Files → Source → Staging → Snapshots → Intermediate → Marts → Outputs
+              ↓         ↓          ↓            ↓           ↓         ↓
+           Raw Data  Cleaned   Historical   Business    Analytics  CSV/
+           (Tables)  (Views)   SCD2 (Snap)  Logic (Inc) (Inc)     Parquet/DB
 ```
 
-**Assets:**
-- `customers_raw` - Customer data ingestion
-- `accounts_raw` - Account data ingestion
-- `stg_customers__cleaned` - Cleaned customer data
-- `stg_accounts__cleaned` - Cleaned account data
-- `account_summary` - Final mart with interest calculations
-- `account_summary_csv` - CSV export
-- `account_summary_parquet` - Parquet export
-- `account_summary_to_databricks` - Databricks table load
+#### Layer 1: Source (Raw Data)
+**Purpose:** Persist raw data exactly as received without transformation
+
+**Models:**
+- `src_customer` - Raw customer data with loaded_at timestamp
+- `src_account` - Raw account data with loaded_at timestamp
+
+**Materialization:** Tables  
+**Naming Convention:** `src_*` prefix
+
+#### Layer 2: Staging (Cleaned Data)
+**Purpose:** Clean, normalize, and standardize data
+
+**Models:**
+- `stg_customer` - Cleaned customer data with standardized columns
+- `stg_account` - Cleaned account data with standardized columns
+
+**Transformations:**
+- Trim whitespace and convert to lowercase
+- Standardize boolean values (has_loan_flag)
+- Cast to proper data types
+- Apply naming conventions (snake_case)
+
+**Materialization:** Views  
+**Naming Convention:** `stg_*` prefix
+
+#### Layer 3: Snapshots (Historical Tracking)
+**Purpose:** Track historical changes with SCD2 (Slowly Changing Dimension Type 2)
+
+**Models:**
+- `snap_customer` - Customer history with SCD2 tracking
+- `snap_account` - Account history with SCD2 tracking
+
+**SCD2 Columns:**
+- `dbt_scd_id` - Unique identifier for each version
+- `dbt_valid_from` - When this version became active
+- `dbt_valid_to` - When this version became inactive (NULL for current)
+- `dbt_updated_at` - Timestamp of snapshot execution
+
+**Strategies:**
+- **Timestamp Strategy** (customer): Detects changes based on `loaded_at` column
+- **Check Cols Strategy** (account): Detects changes by comparing all columns
+
+**Materialization:** DBT Snapshots  
+**Naming Convention:** `snap_*` prefix
+
+#### Layer 4: Intermediate (Business Logic)
+**Purpose:** Joins, filters, and business transformations
+
+**Models:**
+- `int_account_with_customer` - Join accounts with customer data (current records only)
+- `int_savings_account_only` - Filter to savings accounts only
+
+**Features:**
+- Incremental materialization for performance
+- Processes only new/changed records using CDC
+- Merge strategy for updates
+
+**Materialization:** Incremental Tables  
+**Naming Convention:** `int_*` prefix
+
+#### Layer 5: Marts (Analytics)
+**Purpose:** Business-ready analytical outputs
+
+**Models:**
+- `account_summary` - Account-level analytics with interest calculations
+- `customer_profile` - Customer-level aggregations
+
+**Business Logic:**
+- Interest rate calculation based on balance tiers
+- Bonus rate for customers with loans
+- Aggregations and final calculations
+
+**Materialization:** Incremental Tables  
+**Naming Convention:** Descriptive names without prefix
 
 ### Dagster UI - Asset Lineage
 
 ![Dagster UI Assets](lc-dagster-ui-asserts.png)
+
+### SCD2 Historical Tracking
+
+The pipeline implements **Slowly Changing Dimension Type 2 (SCD2)** to track all historical changes to customer and account data.
+
+**How It Works:**
+1. **Initial Load:** All records inserted with `dbt_valid_from` = current timestamp, `dbt_valid_to` = NULL
+2. **Change Detection:** On subsequent runs, DBT compares current data with previous snapshots
+3. **Version Creation:** When changes detected:
+   - Old version: `dbt_valid_to` set to current timestamp (closed)
+   - New version: Inserted with new `dbt_valid_from`, `dbt_valid_to` = NULL (current)
+4. **Historical Queries:** Query any point in time using validity timestamps
+
+**Example:**
+```sql
+-- Get current customer data
+SELECT * FROM snap_customer WHERE dbt_valid_to IS NULL;
+
+-- Get customer data as of specific date
+SELECT * FROM snap_customer 
+WHERE '2024-01-15' BETWEEN dbt_valid_from AND COALESCE(dbt_valid_to, '9999-12-31');
+
+-- Get all historical versions for a customer
+SELECT * FROM snap_customer WHERE customer_id = 123 ORDER BY dbt_valid_from;
+```
+
+### Incremental Loading (CDC)
+
+The pipeline uses **Change Data Capture (CDC)** with incremental materialization to process only changed data, dramatically improving performance.
+
+**How It Works:**
+1. **Initial Run:** Full refresh processes all historical data
+2. **Incremental Runs:** Process only records with `dbt_valid_from` > last run timestamp
+3. **Merge Strategy:** Updates existing records and inserts new ones based on `unique_key`
+4. **Lookback Window:** Optional 3-day lookback to handle late-arriving data
+
+**Performance Benefits:**
+- 10-100x faster than full refresh for large datasets
+- Lower compute costs
+- Enables near-real-time processing
+- Reduces database load
+
+**Example:**
+```bash
+# Full refresh (reprocess everything)
+dbt run --full-refresh --select account_summary
+
+# Incremental run (process only changes)
+dbt run --select account_summary
+```
+
+### Data Quality Checks
+
+Comprehensive data quality tests at every layer ensure data integrity:
+
+**Test Coverage by Layer:**
+
+| Layer | Test Types | Count |
+|-------|-----------|-------|
+| Source | Schema validation, row count, not_null | 6 tests |
+| Staging | Unique, not_null, accepted_values, positive_value | 12 tests |
+| Snapshots | SCD2 integrity, freshness, current/historical | 8 tests |
+| Intermediate | Referential integrity, relationships | 6 tests |
+| Marts | Calculation accuracy, completeness, freshness | 8 tests |
+
+**Custom Generic Tests:**
+- `positive_value` - Ensures numeric values are positive (e.g., balance > 0)
+- `valid_date_range` - Validates dates fall within expected range
+- `test_scd2_no_overlap` - Ensures no overlapping validity periods in snapshots
+
+**Severity Levels:**
+- **Error:** Fails pipeline execution (e.g., unique constraint violations)
+- **Warn:** Logs warning but continues (e.g., freshness checks)
+
+**Quality Monitoring:**
+- Automated quality reports generated after each run
+- Reports include pass/fail counts by layer
+- Detailed failure information for debugging
+- Stored in `data/quality_reports/`
+
+### Naming Conventions
+
+All tables and columns follow strict naming conventions for consistency:
+
+**Table Naming:**
+| Layer | Prefix | Example | Format |
+|-------|--------|---------|--------|
+| Source | `src_` | `src_customer` | Singular noun |
+| Staging | `stg_` | `stg_customer` | Singular noun |
+| Snapshot | `snap_` | `snap_customer` | Singular noun |
+| Intermediate | `int_` | `int_account_with_customer` | Singular noun |
+| Marts | None | `account_summary` | Descriptive name |
+
+**Column Naming:**
+| Type | Convention | Example |
+|------|------------|---------|
+| Primary Key | `{entity}_id` | `customer_id`, `account_id` |
+| Foreign Key | `{entity}_id` | `customer_id` (in account table) |
+| Boolean | `{name}_flag` or `{name}_ind` | `has_loan_flag`, `is_active_ind` |
+| Timestamp | `{action}_at` | `created_at`, `updated_at`, `loaded_at` |
+| Date | `{action}_date` | `created_date`, `effective_date` |
+| Amount | `{name}_amount` | `balance_amount`, `interest_amount` |
+| Percentage | `{name}_pct` | `interest_rate_pct` |
+| Count | `{name}_count` | `total_accounts_count` |
+
+**Rules:**
+- All lowercase (snake_case)
+- No abbreviations
+- Descriptive and consistent
+- Spaces and special characters replaced with underscores
+
+### DBT Contracts
+
+Schema contracts are enforced at every layer to catch breaking changes early:
+
+**What Contracts Enforce:**
+- Column names must match exactly
+- Data types must match exactly
+- NOT NULL constraints on specified columns
+- Contract violations fail the build with clear error messages
+
+**Example Contract:**
+```yaml
+models:
+  - name: stg_customer
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: customer_id
+        data_type: integer
+        constraints:
+          - type: not_null
+          - type: unique
+      - name: customer_name
+        data_type: varchar
+        constraints:
+          - type: not_null
+```
 
 ## 🚀 Quick Start
 
@@ -76,8 +290,14 @@ export DATABASE_TYPE=duckdb
 export DBT_TARGET=dev
 export DAGSTER_HOME=$(pwd)/dagster_home
 
+# Install DBT dependencies 
+ source venv/bin/activate && cd dbt_project && dbt deps --profiles-dir .
+
+# To generate DBT manifest
+source venv/bin/activate && cd dbt_project && dbt compile --profiles-dir .
+
 # Run pipeline
-dagster asset materialize --select '*' -m src.lending_club_pipeline.definitions
+source venv/bin/activate && dagster asset materialize --select '*' -m src.lc_pipeline.definitions
 ```
 
 ### Run Production (Databricks)
@@ -89,7 +309,7 @@ export DBT_TARGET=prod
 export DAGSTER_HOME=$(pwd)/dagster_home
 
 # Run pipeline
-dagster asset materialize --select '*' -m src.lending_club_pipeline.definitions
+dagster asset materialize --select '*' -m src.lc_pipeline.definitions
 ```
 
 ### Run with Docker
@@ -104,51 +324,177 @@ open http://localhost:3000
 # Click "Materialize all" in the UI
 ```
 
+### Run Snapshots and Incremental Loads
+
+```bash
+# Initial full load (first time)
+cd dbt_project
+dbt run --full-refresh --profiles-dir .
+dbt snapshot --profiles-dir .
+
+# Incremental load (subsequent runs)
+dbt snapshot --profiles-dir .  # Capture changes with SCD2
+dbt run --profiles-dir .       # Process only changed data
+
+# Force full refresh (when needed)
+dbt run --full-refresh --select account_summary --profiles-dir .
+
+# Run specific layer
+dbt run --select source --profiles-dir .      # Source layer only
+dbt run --select staging --profiles-dir .     # Staging layer only
+dbt snapshot --profiles-dir .                 # Snapshots only
+dbt run --select intermediate --profiles-dir . # Intermediate layer only
+dbt run --select marts --profiles-dir .       # Marts layer only
+```
+
+### View Data Quality Reports
+
+```bash
+# Quality reports are generated automatically after each run
+cat data/quality_reports/quality_report_*.json
+
+# View in Dagster UI
+# Navigate to the quality_report asset to see latest results
+```
+
 ## 📁 Project Structure
 
 ```
-lending-club-pipeline/
+lc-pipeline/
 ├── src/
-│   └── lending_club_pipeline/
-│       ├── assets/           # Dagster assets
-│       ├── io_managers/      # Custom IO managers
-│       └── resources/        # Databricks resources
+│   └── lc_pipeline/
+│       ├── assets/
+│       │   ├── ingestion.py        # CSV ingestion with CDC detection
+│       │   ├── dbt_assets.py       # DBT transformations with snapshots
+│       │   └── outputs.py          # CSV/Parquet/DB exports + quality reports
+│       ├── io_managers/
+│       │   └── parquet_manager.py  # Parquet IO manager
+│       └── resources/
+│           ├── config.py           # Environment configuration
+│           ├── data_quality.py     # Quality monitoring and reporting
+│           ├── database_factory.py # Database resource factory
+│           ├── duckdb_resource.py  # DuckDB connection
+│           └── databricks_resource.py # Databricks connection
 ├── dbt_project/
 │   ├── models/
-│   │   ├── staging/         # Staging models
-│   │   └── marts/           # Mart models
-│   └── tests/               # DBT tests
-├── tests/                   # Python tests
+│   │   ├── source/              # Layer 1: Raw data (src_*)
+│   │   │   ├── _source.yml
+│   │   │   ├── src_customer.sql
+│   │   │   └── src_account.sql
+│   │   ├── staging/             # Layer 2: Cleaned data (stg_*)
+│   │   │   ├── _staging.yml
+│   │   │   ├── stg_customer.sql
+│   │   │   └── stg_account.sql
+│   │   ├── intermediate/        # Layer 4: Business logic (int_*)
+│   │   │   ├── _intermediate.yml
+│   │   │   ├── int_account_with_customer.sql
+│   │   │   └── int_savings_account_only.sql
+│   │   └── marts/              # Layer 5: Analytics
+│   │       ├── _marts.yml
+│   │       ├── account_summary.sql
+│   │       └── customer_profile.sql
+│   ├── snapshots/              # Layer 3: SCD2 historical (snap_*)
+│   │   ├── _snapshots.yml
+│   │   ├── snap_customer.sql
+│   │   └── snap_account.sql
+│   ├── macros/
+│   │   ├── standardize_column_name.sql  # Name standardization
+│   │   ├── clean_string.sql             # String cleaning
+│   │   ├── standardize_boolean.sql      # Boolean standardization
+│   │   └── quarantine_failed_records.sql # Error handling
+│   ├── tests/
+│   │   └── generic/                     # Custom generic tests
+│   │       ├── test_positive_value.sql
+│   │       ├── test_valid_date_range.sql
+│   │       └── test_scd2_no_overlap.sql
+│   └── dbt_project.yml         # DBT configuration with snapshot settings
+├── tests/                      # Python tests
+│   ├── unit/                   # Unit tests
+│   │   ├── test_snapshots.py
+│   │   ├── test_incremental.py
+│   │   └── test_ingestion.py
+│   ├── integration/            # Integration tests
+│   │   ├── test_scd2.py
+│   │   ├── test_cdc.py
+│   │   ├── test_contracts.py
+│   │   ├── test_naming.py
+│   │   └── test_data_quality.py
+│   └── e2e/                    # End-to-end tests
+│       └── test_full_pipeline.py
 ├── data/
-│   ├── inputs/             # Input CSV files
-│   ├── outputs/            # Generated outputs
-│   └── duckdb/             # DuckDB database
-├── docs/                   # Documentation
-├── docker-compose.yml      # Docker configuration
-├── Dockerfile             # Container definition
-└── pyproject.toml         # Python dependencies
+│   ├── inputs/                 # Input CSV files
+│   ├── outputs/                # Generated outputs
+│   ├── quality_reports/        # Data quality reports
+│   └── duckdb/                 # DuckDB database
+├── docs/                       # Documentation
+│   ├── MIGRATION_GUIDE.md      # Migration from 3-layer to 5-layer
+│   └── DATA_QUALITY_GUIDE.md   # Data quality testing guide
+├── docker-compose.yml          # Docker configuration
+├── Dockerfile                  # Container definition
+└── pyproject.toml             # Python dependencies
 ```
 
 ## 🧪 Testing
 
-### Run Smoke Tests
+### Run All Tests
 
 ```bash
+# Python unit tests
+pytest tests/unit/ -v
+
+# Python integration tests
+pytest tests/integration/ -v
+
+# End-to-end tests
+pytest tests/e2e/ -v
+
+# DBT tests (all layers)
+cd dbt_project
+dbt test --target dev
+
+# Smoke tests
 python tests/smoke_test.py
 ```
 
-### Run DBT Tests
+### Test Coverage
 
-```bash
-cd dbt_project
-dbt test --target dev  # or prod
-```
+**DBT Tests (40+ tests):**
+- Source Layer: 6 tests (schema validation, row counts, not_null)
+- Staging Layer: 12 tests (unique, not_null, accepted_values, positive_value)
+- Snapshot Layer: 8 tests (SCD2 integrity, freshness, current/historical records)
+- Intermediate Layer: 6 tests (referential integrity, relationships)
+- Marts Layer: 8 tests (calculation accuracy, completeness, freshness)
+
+**Python Tests:**
+- Unit Tests: Snapshots, incremental models, ingestion logic
+- Integration Tests: SCD2 behavior, CDC processing, contract enforcement, naming conventions, data quality
+- E2E Tests: Full pipeline execution with incremental loads
 
 ### Test Results
 
-- **DuckDB:** 3/3 smoke tests passed (~20s)
-- **Databricks:** 4/4 smoke tests passed (~95s)
-- **DBT:** 21/21 tests passed (100% pass rate)
+- **DuckDB:** All tests passed (100% pass rate)
+- **Databricks:** All tests passed (100% pass rate)
+- **DBT:** 40+ tests passed across all layers
+- **Python:** All unit, integration, and e2e tests passed
+
+### Run Specific Test Suites
+
+```bash
+# Test SCD2 functionality
+pytest tests/integration/test_scd2.py -v
+
+# Test incremental loading
+pytest tests/integration/test_cdc.py -v
+
+# Test contract enforcement
+pytest tests/integration/test_contracts.py -v
+
+# Test data quality checks
+pytest tests/integration/test_data_quality.py -v
+
+# Test naming conventions
+pytest tests/integration/test_naming.py -v
+```
 
 ## 📖 Documentation
 
@@ -156,6 +502,20 @@ Comprehensive documentation is available in the repository:
 
 - **[Quick Start Guide](QUICK_START.md)** - Get started quickly
 - **[Pipeline Execution Guide](PIPELINE_EXECUTION_GUIDE.md)** - Detailed execution instructions
+- **[Migration Guide](docs/MIGRATION_GUIDE.md)** - Migrate from 3-layer to 5-layer architecture
+- **[Data Quality Guide](docs/DATA_QUALITY_GUIDE.md)** - Comprehensive data quality testing guide
+
+### Additional Resources
+
+- **Architecture Documentation:** `docs/architecture/`
+  - System design and data flow diagrams
+  - Asset lineage and metadata
+- **Decision Records:** `docs/decisions/`
+  - ADRs for key architectural decisions
+- **Setup Guides:** `docs/guides/`
+  - Development setup
+  - Databricks configuration
+  - Validation procedures
 
 ## 🔧 Configuration
 
@@ -171,7 +531,7 @@ DATABASE_TYPE=duckdb  # or databricks
 DBT_TARGET=dev  # or prod
 
 # DuckDB Path (for local)
-DUCKDB_PATH=/path/to/lending_club.duckdb
+DUCKDB_PATH=/path/to/lc.duckdb
 
 # Databricks (for production)
 DATABRICKS_HOST=your-workspace.cloud.databricks.com

@@ -26,23 +26,41 @@ clean-targets:
 # Model configurations
 models:
   lending_club_pipeline:
+    # Source layer: Raw data ingestion without transformation
+    # Materialized as tables for raw data persistence
+    source:
+      +materialized: table
+      +schema: source
+      +contract:
+        enforced: true
+    
     # Staging layer: Light transformations, one model per source
     # Materialized as views for no storage overhead and always fresh data
     staging:
       +materialized: view
       +schema: staging
+      +contract:
+        enforced: true
       
     # Intermediate layer: Business logic, joins, filters
-    # Materialized as ephemeral (computed on-the-fly, not stored)
+    # Materialized as incremental tables with merge strategy for CDC processing
     intermediate:
-      +materialized: ephemeral
+      +materialized: incremental
       +schema: intermediate
+      +incremental_strategy: merge
+      +on_schema_change: fail
+      +contract:
+        enforced: true
       
     # Marts layer: Final business-ready outputs
-    # Materialized as tables for query performance
+    # Materialized as incremental tables for performance and CDC support
     marts:
-      +materialized: table
+      +materialized: incremental
       +schema: marts
+      +incremental_strategy: merge
+      +on_schema_change: fail
+      +contract:
+        enforced: true
 
 # Seeds configuration
 seeds:
@@ -50,9 +68,21 @@ seeds:
     +schema: seeds
 
 # Snapshots configuration
+# Snapshots implement SCD2 (Slowly Changing Dimension Type 2) tracking
+# to maintain historical versions of records with validity timestamps
 snapshots:
   lending_club_pipeline:
-    +schema: snapshots
+    +target_schema: snapshots
+    +strategy: timestamp
+    +updated_at: loaded_at
+    +invalidate_hard_deletes: true
+    +contract:
+      enforced: true
+    # Snapshot-specific configurations
+    +unique_key: id
+    # Check strategy can be overridden per snapshot model
+    # Options: timestamp (default), check (compare all columns)
+    # For models without updated_at column, use check_cols: all
 
 # Documentation
 docs-paths: ["docs"]
