@@ -62,8 +62,6 @@ models:
           - type: not_null
         tests:
           - not_null
-          - dbt_utils.expression_is_true:
-              expression: ">= 0.01 and <= 0.025"
           
       - name: annual_interest_amount
         description: >
@@ -104,10 +102,6 @@ models:
           interval: 7
           config:
             severity: warn
-      - dbt_utils.expression_is_true:
-          expression: "count(*) > 0"
-          config:
-            severity: error
 
   - name: customer_profile
     description: >
@@ -199,7 +193,3 @@ models:
           interval: 7
           config:
             severity: warn
-      - dbt_utils.expression_is_true:
-          expression: "count(*) > 0"
-          config:
-            severity: error

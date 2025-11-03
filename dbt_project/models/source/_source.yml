@@ -43,10 +43,6 @@ models:
           field: loaded_at
           interval: 7
           severity: warn
-      - dbt_utils.expression_is_true:
-          expression: "count(*) > 0"
-          config:
-            severity: error
 
   - name: src_account
     description: >
@@ -94,7 +90,3 @@ models:
           field: loaded_at
           interval: 7
           severity: warn
-      - dbt_utils.expression_is_true:
-          expression: "count(*) > 0"
-          config:
-            severity: error

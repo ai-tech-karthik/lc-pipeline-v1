@@ -57,7 +57,7 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['Savings', 'Checking']
+              values: ['savings', 'checking']
       
       - name: customer_name
         description: Name of the customer who owns this account
