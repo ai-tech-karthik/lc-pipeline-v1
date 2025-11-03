@@ -1,6 +1,7 @@
 # Generated data
 data/outputs/*
 data/duckdb/*
+data/quality_reports/*
 !data/**/.gitkeep
 !data/inputs/.gitkeep
 
@@ -31,7 +32,7 @@ ENV/
 env/
 
 # DBT
-dbt_project/target/dbt_*
+dbt_project/target/
 dbt_project/logs/
 dbt_project/dbt_packages/
 
