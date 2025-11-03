@@ -26,7 +26,7 @@ Using Dagster's asset-centric model, we focus on data products rather than tasks
 
 ### 3. Layered Transformation Architecture
 
-The three-layer medallion architecture (staging → intermediate → marts) provides:
+The five-layer architecture (source → staging → snapshots → intermediate → marts) provides:
 
 - Clear separation of concerns
 - Reusable intermediate components
@@ -112,7 +112,7 @@ The three-layer medallion architecture (staging → intermediate → marts) prov
 
 ### 2. Transformation Layer (DBT)
 
-**Purpose**: Clean, join, and enrich data through three layers
+**Purpose**: Clean, join, and enrich data through five layers with SCD2 historical tracking
 
 #### Staging Layer
 - **Materialization**: Views (no storage overhead)
@@ -295,11 +295,17 @@ services:
 **Rationale**: Asset-centric model, superior DBT integration, better local development experience
 **Trade-off**: Steeper learning curve, smaller community
 
-### Three-Layer vs. Two-Layer Architecture
+### Five-Layer Architecture
 
-**Chosen**: Three layers (staging/intermediate/marts)
-**Rationale**: Clear separation of concerns, reusable components, quality gates
-**Trade-off**: More models to maintain, slightly more complex
+**Chosen**: Five layers (source → staging → snapshots → intermediate → marts)
+**Rationale**: 
+- Clear separation of concerns with dedicated source layer
+- SCD2 historical tracking via snapshots layer  
+- Incremental processing for performance
+- Reusable components and quality gates
+- Complete audit trail of all changes
+
+**Trade-off**: More models to maintain, additional complexity for SCD2 tracking
 
 ### DuckDB vs. SQLite for Local Development
 

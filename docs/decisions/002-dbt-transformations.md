@@ -1,4 +1,4 @@
-# ADR 002: DBT for Transformations and Three-Layer Architecture
+# ADR 002: DBT for Transformations and Five-Layer Architecture
 
 ## Status
 
@@ -60,7 +60,7 @@ We also need to decide on a data architecture pattern that:
 
 ## Decision
 
-We will use **DBT** for SQL transformations with a **three-layer architecture** (staging → intermediate → marts).
+We will use **DBT** for SQL transformations with a **five-layer architecture** (source → staging → snapshots → intermediate → marts) including SCD2 historical tracking.
 
 ## Rationale
 
@@ -158,9 +158,15 @@ Benefits:
 - Easy local development
 - Production deployment without changes
 
-### Why Three-Layer Architecture?
+### Why Five-Layer Architecture?
 
-#### Layer 1: Staging
+#### Layer 1: Source
+- **Purpose**: Persist raw data exactly as received
+- **Materialization**: Tables
+- **Transformations**: None - exact copy of ingested data with loaded_at timestamp
+- **Examples**: src_customer, src_account
+
+#### Layer 2: Staging
 
 **Purpose**: Clean and normalize raw data
 
@@ -190,7 +196,41 @@ FROM {{ source('raw', 'customers') }}
 - Quality gates before business logic
 - Easy to debug data issues
 
-#### Layer 2: Intermediate
+#### Layer 3: Snapshots (SCD2 Historical Tracking)
+
+**Purpose**: Track all historical changes to data over time
+
+**Characteristics**:
+- DBT snapshot models
+- SCD2 (Slowly Changing Dimension Type 2) implementation
+- Automatic change detection
+- Validity timestamps (dbt_valid_from, dbt_valid_to)
+- Materialized as tables in snapshots schema
+
+**Example**:
+```sql
+-- snap_customer.sql
+{% snapshot snap_customer %}
+{{
+    config(
+      target_schema='snapshots',
+      unique_key='customer_id',
+      strategy='timestamp',
+      updated_at='loaded_at',
+    )
+}}
+SELECT * FROM {{ ref('stg_customer') }}
+{% endsnapshot %}
+```
+
+**Benefits**:
+- Complete audit trail of all changes
+- Point-in-time queries
+- Historical analysis capabilities
+- Automatic version management
+- No manual SCD2 logic required
+
+#### Layer 4: Intermediate
 
 **Purpose**: Reusable business logic components
 
@@ -220,9 +260,9 @@ INNER JOIN {{ ref('stg_customers__cleaned') }} c
 - Business logic isolated from presentation
 - Easier to test and maintain
 
-#### Layer 3: Marts
+#### Layer 5: Marts
 
-**Purpose**: Business-ready analytical outputs
+**Purpose**: Business-ready analytical outputs with incremental processing
 
 **Characteristics**:
 - Final outputs for consumption
@@ -254,14 +294,17 @@ FROM {{ ref('int_savings_accounts_only') }}
 
 ### Architecture Comparison
 
-| Aspect | Three-Layer | Two-Layer | Single-Layer |
-|--------|-------------|-----------|--------------|
-| Separation of Concerns | ✅ Excellent | ⚠️ Moderate | ❌ Poor |
-| Reusability | ✅ High | ⚠️ Medium | ❌ Low |
-| Maintainability | ✅ Easy | ⚠️ Moderate | ❌ Hard |
-| Debugging | ✅ Easy | ⚠️ Moderate | ❌ Hard |
-| Complexity | ⚠️ More models | ✅ Fewer models | ✅ Simplest |
-| Performance | ✅ Optimized | ✅ Good | ⚠️ Variable |
+| Aspect | Five-Layer (Current) | Three-Layer | Two-Layer | Single-Layer |
+|--------|----------------------|-------------|-----------|--------------|
+| Separation of Concerns | ✅ Excellent | ✅ Good | ⚠️ Moderate | ❌ Poor |
+| Historical Tracking | ✅ SCD2 Built-in | ❌ Manual | ❌ Manual | ❌ Manual |
+| Incremental Processing | ✅ CDC Enabled | ⚠️ Possible | ⚠️ Possible | ❌ No |
+| Reusability | ✅ High | ✅ High | ⚠️ Medium | ❌ Low |
+| Maintainability | ✅ Easy | ✅ Easy | ⚠️ Moderate | ❌ Hard |
+| Debugging | ✅ Easy | ✅ Easy | ⚠️ Moderate | ❌ Hard |
+| Complexity | ⚠️ Most models | ⚠️ More models | ✅ Fewer models | ✅ Simplest |
+| Performance | ✅ Optimized (CDC) | ✅ Good | ✅ Good | ⚠️ Variable |
+| Audit Trail | ✅ Complete | ⚠️ Limited | ⚠️ Limited | ❌ None |
 
 ### Materialization Strategy
 
@@ -296,10 +339,11 @@ models:
 
 ### Negative
 
-1. **Learning Curve**: Team needs to learn DBT
-2. **More Models**: Three layers means more files
-3. **Complexity**: More structure to understand
-4. **Overhead**: DBT framework adds some overhead
+1. **Learning Curve**: Team needs to learn DBT and SCD2 concepts
+2. **More Models**: Five layers means more files to maintain
+3. **Complexity**: More structure to understand (snapshots, incremental logic)
+4. **Overhead**: DBT framework and snapshot storage adds overhead
+5. **Storage**: Snapshots grow over time (requires archival strategy)
 
 ### Neutral
 

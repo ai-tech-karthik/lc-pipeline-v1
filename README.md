@@ -5,10 +5,25 @@ A production-grade data pipeline for processing customer and account data with i
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/)
 [![Dagster](https://img.shields.io/badge/dagster-1.5%2B-orange)](https://dagster.io/)
 [![DBT](https://img.shields.io/badge/dbt-1.6%2B-orange)](https://www.getdbt.com/)
+[![AI](https://img.shields.io/badge/Built%20with-Claude%20AI-blueviolet)](https://www.anthropic.com/claude)
+[![IDE](https://img.shields.io/badge/Developed%20in-Kiro-blue)](https://kiro.ai/)
+
+> **Note:** This project was developed using AI-assisted development with **Claude (Anthropic)** via **Kiro IDE**, demonstrating modern AI-powered software engineering practices including vibe coding, iterative refinement, and comprehensive testing.
 
 ## 🎯 Overview
 
 This pipeline processes LC customer and account data, applies interest calculations, and outputs results in multiple formats (CSV, Parquet, Databricks tables). It supports both local development (DuckDB) and production deployment (Databricks).
+
+### Core Design Principles
+
+- **Separation of Concerns** - Five distinct layers isolate raw data, cleaning, history, business logic, and analytics
+- **Immutable History** - SCD2 snapshots preserve complete audit trail of all data changes over time
+- **Incremental by Default** - CDC-based processing ensures only changed data is processed for optimal performance
+- **Contract-Driven** - Schema contracts at every layer prevent breaking changes and ensure data quality
+- **Test Everything** - 103 automated tests validate data quality, relationships, and business logic
+- **Idempotent Operations** - Pipeline can be re-run safely without duplicating data or corrupting state
+- **Environment Parity** - Identical behavior across local (DuckDB) and production (Databricks) environments
+- **Observable & Debuggable** - Comprehensive logging, lineage tracking, and quality reports at every step
 
 ### Key Features
 
@@ -314,15 +329,31 @@ dagster asset materialize --select '*' -m src.lc_pipeline.definitions
 
 ### Run with Docker
 
+The pipeline is fully containerized with Docker Compose for easy deployment:
+
+![Docker Containers Architecture](docker-containers.png)
+
 ```bash
-# Start containers
+# Start all containers (Dagster, PostgreSQL, DBT)
 docker-compose up -d
 
 # Access Dagster UI
 open http://localhost:3000
 
-# Click "Materialize all" in the UI
+# Click "Materialize all" in the UI to run the complete pipeline
+
+# View logs
+docker-compose logs -f dagster
+
+# Stop containers
+docker-compose down
 ```
+
+**Container Architecture:**
+- **Dagster Webserver** - UI and orchestration (port 3000)
+- **Dagster Daemon** - Background job execution and scheduling
+- **PostgreSQL** - Metadata storage for Dagster runs and assets
+- **Shared Volume** - DBT project and data files mounted across containers
 
 ### Run DBT Pipeline Directly
 
@@ -569,3 +600,68 @@ DATABRICKS_HTTP_PATH=/sql/1.0/warehouses/your-warehouse-id
 - **Containerization:** Docker, Docker Compose
 - **Storage:** PostgreSQL (metadata), DuckDB/Databricks (data)
 
+
+
+## 🤖 AI-Assisted Development
+
+This project was developed using **AI-assisted software engineering** practices, showcasing the power of modern AI tools in building production-grade data pipelines.
+
+### Development Tools
+
+- **AI Assistant:** Claude (Anthropic) - Advanced AI model for code generation, architecture design, and problem-solving
+- **IDE:** Kiro - AI-native development environment optimized for AI-assisted coding
+- **Methodology:** Vibe Coding - Iterative, conversational approach to software development
+
+### AI Contributions
+
+The AI assistant helped with:
+
+1. **Architecture Design**
+   - Designed 5-layer architecture with SCD2 historical tracking
+   - Implemented incremental processing with CDC patterns
+   - Created comprehensive data quality framework
+
+2. **Code Implementation**
+   - Generated 10 DBT models across 5 layers
+   - Implemented 2 SCD2 snapshots for historical tracking
+   - Created 103 automated tests (100% pass rate)
+   - Built Dagster orchestration with asset dependencies
+
+3. **Testing & Validation**
+   - Designed and executed comprehensive test suite
+   - Fixed all test failures and contract violations
+   - Validated pipeline on both DuckDB and Databricks
+
+4. **Documentation**
+   - Created detailed README, quick start guides, and execution guides
+   - Wrote architecture decision records (ADRs)
+   - Generated migration guide from 3-layer to 5-layer architecture
+
+5. **Troubleshooting**
+   - Debugged Dagster asset ordering issues
+   - Fixed DBT contract enforcement errors
+   - Resolved quarantine model type casting problems
+
+### Development Approach
+
+The project followed an iterative, test-driven approach:
+
+1. **Requirements Gathering** - Defined pipeline goals and data flow
+2. **Architecture Design** - Designed 5-layer architecture with SCD2
+3. **Incremental Implementation** - Built layer by layer with testing
+4. **Validation** - Tested on DuckDB locally, then Databricks production
+5. **Documentation** - Comprehensive docs for maintenance and operations
+
+### Results
+
+- **100% Test Pass Rate** - All 103 tests passing
+- **Production Ready** - Successfully deployed to Databricks
+- **Fully Documented** - Complete documentation for all components
+- **Performance Optimized** - Incremental processing with CDC
+- **Maintainable** - Clear separation of concerns, comprehensive tests
+
+This project demonstrates how AI-assisted development can accelerate the creation of complex, production-grade data pipelines while maintaining high code quality and comprehensive documentation.
+
+---
+
+**Built with ❤️ using Claude AI via Kiro IDE**
