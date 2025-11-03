@@ -1,0 +1,24 @@
+
+    select
+      count(*) as failures,
+      count(*) != 0 as should_warn,
+      count(*) != 0 as should_error
+    from (
+      
+    
+  -- Test that int_savings_account_only contains only Savings accounts
+-- Business rule: This model should filter to account_type = 'Savings' only
+
+select
+    account_id,
+    customer_id,
+    balance_amount
+from workspace.default_intermediate.int_account_with_customer
+where account_type = 'Savings'
+  and account_id not in (
+    select account_id from workspace.default_intermediate.int_savings_account_only
+  )
+  
+  
+      
+    ) dbt_internal_test

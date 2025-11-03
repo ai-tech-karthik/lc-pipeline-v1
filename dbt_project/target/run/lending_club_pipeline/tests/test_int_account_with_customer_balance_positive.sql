@@ -1,0 +1,21 @@
+
+    select
+      count(*) as failures,
+      count(*) != 0 as should_warn,
+      count(*) != 0 as should_error
+    from (
+      
+    
+  -- Test that all account balances in the intermediate layer are positive
+-- Business rule: Accounts with zero or negative balances should be filtered out
+
+select
+    account_id,
+    customer_id,
+    balance_amount
+from workspace.default_intermediate.int_account_with_customer
+where balance_amount <= 0
+  
+  
+      
+    ) dbt_internal_test

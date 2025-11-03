@@ -4,116 +4,54 @@
     Purpose: Generate final account summary with calculated interest rates
     and projected balances based on business rules.
     
+    Layer: Marts (Layer 5)
+    Materialization: incremental (merge strategy)
+    Unique Key: account_id
+    
     Business Logic:
     - Base interest rate by balance tier:
         * < $10,000: 1.0% (0.01)
         * $10,000 - $19,999: 1.5% (0.015)
         * >= $20,000: 2.0% (0.02)
-    - Bonus rate: +0.5% (0.005) if customer has_loan = 'Yes'
+    - Bonus rate: +0.5% (0.005) if customer has_loan_flag = true
     - Annual interest: balance * interest_rate, rounded to 2 decimals
     - New balance: original_balance + annual_interest, rounded to 2 decimals
     
-    Materialization: table (persistent storage for query performance)
+    Incremental Strategy:
+    - On first run: Process all savings accounts
+    - On subsequent runs: Process only records changed since last run
+    - Uses merge strategy to update existing records and insert new ones
+    - Filters based on valid_from_at timestamp from upstream model
+    
+    Error Handling:
+    - Uses COALESCE to handle NULL max values (empty table scenario)
+    - Fallback to '1900-01-01' ensures all records are processed if table is empty
+    - Prevents incremental load failures due to missing data
 */
 
 
 
-with  __dbt__cte__int_accounts__with_customer as (
-/*
-    Intermediate model: Accounts with Customer Information
-    
-    Purpose: Join account records with customer information to enable
-    customer-context analysis of accounts.
-    
-    Business Logic:
-    - INNER JOIN ensures only accounts with valid customer records are included
-    - Preserves all account fields for downstream analysis
-    - Adds has_loan attribute from customer for interest rate calculations
-    
-    Materialization: ephemeral (computed on-the-fly, not stored)
-*/
-
-
-
-with accounts as (
-    select
-        account_id,
-        customer_id,
-        balance,
-        account_type
-    from lending_club.main_staging.stg_accounts__cleaned
-),
-
-customers as (
-    select
-        customer_id,
-        name,
-        has_loan
-    from lending_club.main_staging.stg_customers__cleaned
-),
-
-joined as (
-    select
-        -- All account fields
-        accounts.account_id,
-        accounts.customer_id,
-        accounts.balance,
-        accounts.account_type,
-        
-        -- Customer attribute needed for downstream calculations
-        customers.has_loan
-        
-    from accounts
-    inner join customers
-        on accounts.customer_id = customers.customer_id
-)
-
-select * from joined
-),  __dbt__cte__int_savings_accounts_only as (
-/*
-    Intermediate model: Savings Accounts Only
-    
-    Purpose: Filter accounts to include only savings accounts for interest
-    rate calculations and analysis.
-    
-    Business Logic:
-    - Filters to account_type = 'Savings' only
-    - Excludes checking accounts from downstream processing
-    - Preserves all fields from the joined account-customer data
-    
-    Materialization: ephemeral (computed on-the-fly, not stored)
-*/
-
-
-
-with accounts_with_customer as (
-    select
-        account_id,
-        customer_id,
-        balance,
-        account_type,
-        has_loan
-    from __dbt__cte__int_accounts__with_customer
-),
-
-savings_only as (
-    select
-        account_id,
-        customer_id,
-        balance,
-        has_loan
-    from accounts_with_customer
-    where account_type = 'Savings'
-)
-
-select * from savings_only
-), savings_accounts as (
+with savings_accounts as (
     select
         customer_id,
         account_id,
-        balance,
-        has_loan
-    from __dbt__cte__int_savings_accounts_only
+        balance_amount as balance,
+        has_loan_flag as has_loan,
+        valid_from_at
+    from workspace.default_intermediate.int_savings_account_only
+    
+    
+    -- Process only new or changed records since last run
+    -- Error handling: If max(calculated_at) returns NULL (empty table),
+    -- fallback to processing all records
+    where valid_from_at > coalesce(
+        (
+            select max(calculated_at)
+            from workspace.default_marts.account_summary
+        ),
+        '1900-01-01'::timestamp  -- Fallback to process all if table is empty
+    )
+    
 ),
 
 interest_calculation as (
@@ -131,7 +69,7 @@ interest_calculation as (
         
         -- Add bonus rate if customer has a loan
         case
-            when has_loan = 'Yes' then 0.005
+            when has_loan = true then 0.005
             else 0.0
         end as bonus_rate
         
@@ -154,13 +92,16 @@ final_calculation as (
 )
 
 select
-    customer_id,
     account_id,
-    original_balance,
-    interest_rate,
-    annual_interest,
+    customer_id,
+    original_balance as original_balance_amount,
+    interest_rate as interest_rate_pct,
+    annual_interest as annual_interest_amount,
     
     -- Calculate new balance (rounded to 2 decimals)
-    round(original_balance + annual_interest, 2) as new_balance
+    round(original_balance + annual_interest, 2) as new_balance_amount,
+    
+    -- Add calculated timestamp
+    current_timestamp() as calculated_at
     
 from final_calculation
