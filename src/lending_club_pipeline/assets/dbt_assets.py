@@ -282,10 +282,11 @@ def dbt_transformations(context: AssetExecutionContext, dbt: DbtCliResource):
     
     for attempt in range(max_retries):
         try:
-            # Step 1: Execute DBT models for source and staging layers only
-            # These must exist before snapshots can reference them
-            context.log.info("Step 1: Executing DBT source and staging models")
-            dbt_args = ["run", "--select", "source staging", "--exclude", "quarantine_*"]
+            # Step 1: Execute DBT build command which runs models, snapshots, and tests in correct order
+            # DBT automatically handles dependencies and runs in topological order
+            # Exclude quarantine models as they are optional error handling tables
+            context.log.info("Step 1: Executing DBT build (models + snapshots + tests)")
+            dbt_args = ["build", "--exclude", "quarantine_*"]
             
             context.log.info(f"DBT command: dbt {' '.join(dbt_args)}")
             
@@ -300,99 +301,12 @@ def dbt_transformations(context: AssetExecutionContext, dbt: DbtCliResource):
                 
                 yield event
             
-            context.log.info("DBT source and staging models completed successfully")
-            
-            # Step 2: Execute DBT snapshots to capture SCD2 versions
-            # Snapshots run after staging models are created but before intermediate/marts
-            context.log.info("Step 2: Executing DBT snapshots for SCD2 tracking")
-            snapshot_args = ["snapshot"]
-            
-            context.log.info(f"DBT command: dbt {' '.join(snapshot_args)}")
-            
-            try:
-                snapshot_result = dbt.cli(snapshot_args, context=context)
-                
-                # Process snapshot events
-                for event in snapshot_result.stream():
-                    if hasattr(event, 'event_type') and 'warn' in str(event.event_type).lower():
-                        context.log.warning(f"DBT snapshot warning: {event}")
-                    yield event
-                
-                context.log.info("DBT snapshots completed successfully")
-                
-            except Exception as snapshot_error:
-                # Handle snapshot-specific errors
-                error_message = str(snapshot_error)
-                context.log.error(f"Snapshot execution failed: {error_message}")
-                
-                # Check if this is a first-run scenario (snapshots don't exist yet)
-                if "does not exist" in error_message.lower() or "not found" in error_message.lower():
-                    context.log.warning(
-                        "Snapshot tables may not exist yet. This is expected on first run. "
-                        "Snapshots will be created during this execution."
-                    )
-                    # Continue to test execution
-                else:
-                    # Re-raise for other snapshot errors
-                    context.log.error(
-                        "Snapshot execution failed with error. "
-                        "Check that staging models (stg_customer, stg_account) exist and have data."
-                    )
-                    raise
-            
-            # Step 3: Execute remaining DBT models (intermediate and marts)
-            # These depend on snapshots, so they run after snapshots are created
-            context.log.info("Step 3: Executing DBT intermediate and marts models")
-            dbt_args = ["run", "--select", "intermediate marts", "--exclude", "quarantine_*"]
-            
-            context.log.info(f"DBT command: dbt {' '.join(dbt_args)}")
-            
-            # Stream DBT execution events
-            dbt_result = dbt.cli(dbt_args, context=context)
-            
-            # Process and log DBT events
-            for event in dbt_result.stream():
-                # Log warnings from DBT
-                if hasattr(event, 'event_type') and 'warn' in str(event.event_type).lower():
-                    context.log.warning(f"DBT warning: {event}")
-                
-                yield event
-            
-            context.log.info("DBT intermediate and marts models completed successfully")
-            
-            # Step 4: Execute DBT tests to validate data quality
-            # Tests run after models and snapshots are created
-            # Exclude quarantine model tests as those models are optional
-            context.log.info("Step 4: Executing DBT tests for data quality validation")
-            test_args = ["test", "--exclude", "quarantine_*"]
-            
-            context.log.info(f"DBT command: dbt {' '.join(test_args)}")
-            
-            try:
-                test_result = dbt.cli(test_args, context=context)
-                
-                # Process test events
-                for event in test_result.stream():
-                    if hasattr(event, 'event_type') and 'warn' in str(event.event_type).lower():
-                        context.log.warning(f"DBT test warning: {event}")
-                    yield event
-                    
-                context.log.info("DBT tests completed successfully")
-            except Exception as test_error:
-                # Log test failures but don't fail the entire pipeline
-                # Tests are validation, not blocking for data availability
-                context.log.warning(f"Some DBT tests failed: {test_error}")
-                context.log.warning("Pipeline will continue - check test results for data quality issues")
+            context.log.info("DBT build completed successfully")
             
             context.log.info("DBT transformation execution completed successfully")
             context.log.info(
                 "Execution summary: "
-                "Source models loaded raw data → "
-                "Staging models cleaned data → "
-                "Intermediate models processed incrementally → "
-                "Marts models generated final outputs → "
-                "Snapshots captured SCD2 versions → "
-                "Tests validated data quality"
+                "DBT build command executed models, snapshots, and tests in correct dependency order"
             )
             
             # If we get here, execution was successful - no need to retry
