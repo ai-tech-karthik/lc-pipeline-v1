@@ -282,11 +282,10 @@ def dbt_transformations(context: AssetExecutionContext, dbt: DbtCliResource):
     
     for attempt in range(max_retries):
         try:
-            # Step 1: Execute DBT models first to create staging layer
-            # Staging models must exist before snapshots can reference them
-            # Exclude quarantine models as they are optional error handling tables
-            context.log.info("Step 1: Executing DBT models (source → staging → intermediate → marts)")
-            dbt_args = ["run", "--exclude", "quarantine_*"]
+            # Step 1: Execute DBT models for source and staging layers only
+            # These must exist before snapshots can reference them
+            context.log.info("Step 1: Executing DBT source and staging models")
+            dbt_args = ["run", "--select", "source staging", "--exclude", "quarantine_*"]
             
             context.log.info(f"DBT command: dbt {' '.join(dbt_args)}")
             
@@ -301,10 +300,10 @@ def dbt_transformations(context: AssetExecutionContext, dbt: DbtCliResource):
                 
                 yield event
             
-            context.log.info("DBT models completed successfully")
+            context.log.info("DBT source and staging models completed successfully")
             
             # Step 2: Execute DBT snapshots to capture SCD2 versions
-            # Snapshots run after staging models are created
+            # Snapshots run after staging models are created but before intermediate/marts
             context.log.info("Step 2: Executing DBT snapshots for SCD2 tracking")
             snapshot_args = ["snapshot"]
             
@@ -341,10 +340,30 @@ def dbt_transformations(context: AssetExecutionContext, dbt: DbtCliResource):
                     )
                     raise
             
-            # Step 3: Execute DBT tests to validate data quality
+            # Step 3: Execute remaining DBT models (intermediate and marts)
+            # These depend on snapshots, so they run after snapshots are created
+            context.log.info("Step 3: Executing DBT intermediate and marts models")
+            dbt_args = ["run", "--select", "intermediate marts", "--exclude", "quarantine_*"]
+            
+            context.log.info(f"DBT command: dbt {' '.join(dbt_args)}")
+            
+            # Stream DBT execution events
+            dbt_result = dbt.cli(dbt_args, context=context)
+            
+            # Process and log DBT events
+            for event in dbt_result.stream():
+                # Log warnings from DBT
+                if hasattr(event, 'event_type') and 'warn' in str(event.event_type).lower():
+                    context.log.warning(f"DBT warning: {event}")
+                
+                yield event
+            
+            context.log.info("DBT intermediate and marts models completed successfully")
+            
+            # Step 4: Execute DBT tests to validate data quality
             # Tests run after models and snapshots are created
             # Exclude quarantine model tests as those models are optional
-            context.log.info("Step 3: Executing DBT tests for data quality validation")
+            context.log.info("Step 4: Executing DBT tests for data quality validation")
             test_args = ["test", "--exclude", "quarantine_*"]
             
             context.log.info(f"DBT command: dbt {' '.join(test_args)}")
