@@ -71,7 +71,7 @@ savings_only as (
         valid_from_at,
         valid_to_at
     from accounts_with_customer
-    where account_type = 'Savings'
+    where account_type = 'savings'
 )
 
 select * from savings_only

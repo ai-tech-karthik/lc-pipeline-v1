@@ -51,6 +51,8 @@ validation_failures as (
         case
             when customer_id is null or trim(customer_id) = ''
             then 'Invalid customer_id: null or empty'
+            when try_cast(customer_id as integer) is null
+            then 'Invalid customer_id: non-numeric value (' || customer_id || ')'
             when name is null or trim(name) = ''
             then 'Invalid name: null or empty'
             when lower(trim(has_loan)) not in ('yes', 'y', 'true', '1', 'no', 'n', 'false', '0', 'none', '')
@@ -65,6 +67,7 @@ validation_failures as (
     -- Apply validation rules (records that fail any rule are quarantined)
     where customer_id is null
        or trim(customer_id) = ''
+       or try_cast(customer_id as integer) is null  -- Non-numeric customer_id
        or name is null
        or trim(name) = ''
        or lower(trim(has_loan)) not in ('yes', 'y', 'true', '1', 'no', 'n', 'false', '0', 'none', '')

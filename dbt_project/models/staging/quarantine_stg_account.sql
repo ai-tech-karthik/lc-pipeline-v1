@@ -57,6 +57,8 @@ validation_failures as (
             then 'Invalid account_id: null or empty'
             when customer_id is null or trim(customer_id) = ''
             then 'Invalid customer_id: null or empty'
+            when try_cast(customer_id as integer) is null
+            then 'Invalid customer_id: non-numeric value (' || customer_id || ')'
             when balance is null or trim(balance) = ''
             then 'Invalid balance: null or empty'
             when lower(trim(balance)) in ('null', 'n/a', 'none')
@@ -67,6 +69,8 @@ validation_failures as (
             then 'Invalid balance: negative value (' || balance || ')'
             when account_type is null or trim(account_type) = ''
             then 'Invalid account_type: null or empty'
+            when lower(trim(account_type)) not in ('savings', 'checking')
+            then 'Invalid account_type: must be Savings or Checking (' || account_type || ')'
             else 'Unknown validation failure'
         end as failure_reason,
         
@@ -79,6 +83,7 @@ validation_failures as (
        or trim(account_id) = ''
        or customer_id is null
        or trim(customer_id) = ''
+       or try_cast(customer_id as integer) is null  -- Non-numeric customer_id
        or balance is null
        or trim(balance) = ''
        or lower(trim(balance)) in ('null', 'n/a', 'none')
@@ -86,6 +91,7 @@ validation_failures as (
        or cast(balance as decimal(18,2)) < 0
        or account_type is null
        or trim(account_type) = ''
+       or lower(trim(account_type)) not in ('savings', 'checking')  -- Invalid account type
 )
 
 select * from validation_failures

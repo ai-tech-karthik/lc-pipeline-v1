@@ -82,7 +82,7 @@ def account_summary_csv(
         catalog = os.getenv("DATABRICKS_CATALOG", "workspace")
         schema = os.getenv("DATABRICKS_SCHEMA", "default")
         
-        context.log.info(f"Reading account_summary from Databricks: {catalog}.{schema}.account_summary")
+        context.log.info(f"Reading account_summary from Databricks: {catalog}.{schema}_marts.account_summary")
         
         with sql.connect(
             server_hostname=host,
@@ -90,7 +90,7 @@ def account_summary_csv(
             access_token=token,
         ) as conn:
             with conn.cursor() as cursor:
-                cursor.execute(f"SELECT * FROM {catalog}.{schema}.account_summary")
+                cursor.execute(f"SELECT * FROM {catalog}.{schema}_marts.account_summary")
                 account_summary = cursor.fetchall_arrow().to_pandas()
                 context.log.info(f"Loaded {len(account_summary)} rows from account_summary table")
     else:
@@ -230,7 +230,7 @@ def account_summary_parquet(
         catalog = os.getenv("DATABRICKS_CATALOG", "workspace")
         schema = os.getenv("DATABRICKS_SCHEMA", "default")
         
-        context.log.info(f"Reading account_summary from Databricks: {catalog}.{schema}.account_summary")
+        context.log.info(f"Reading account_summary from Databricks: {catalog}.{schema}_marts.account_summary")
         
         with sql.connect(
             server_hostname=host,
@@ -238,7 +238,7 @@ def account_summary_parquet(
             access_token=token,
         ) as conn:
             with conn.cursor() as cursor:
-                cursor.execute(f"SELECT * FROM {catalog}.{schema}.account_summary")
+                cursor.execute(f"SELECT * FROM {catalog}.{schema}_marts.account_summary")
                 account_summary = cursor.fetchall_arrow().to_pandas()
                 context.log.info(f"Loaded {len(account_summary)} rows from account_summary table")
     else:
@@ -399,7 +399,10 @@ def account_summary_to_databricks(
     catalog = os.getenv("DATABRICKS_CATALOG", "workspace")
     schema = os.getenv("DATABRICKS_SCHEMA", "default")
     
-    context.log.info(f"Reading account_summary from Databricks: {catalog}.{schema}.account_summary")
+    # DBT creates tables in schema_layer format (e.g., default_marts)
+    dbt_schema = f"{schema}_marts"
+    
+    context.log.info(f"Reading account_summary from Databricks: {catalog}.{dbt_schema}.account_summary")
     
     with sql.connect(
         server_hostname=host,
@@ -407,13 +410,15 @@ def account_summary_to_databricks(
         access_token=token,
     ) as conn:
         with conn.cursor() as cursor:
-            cursor.execute(f"SELECT * FROM {catalog}.{schema}.account_summary")
+            cursor.execute(f"SELECT * FROM {catalog}.{dbt_schema}.account_summary")
             account_summary = cursor.fetchall_arrow().to_pandas()
             context.log.info(f"Loaded {len(account_summary)} rows from account_summary table")
     
     # Define table name
+    # Write to the default schema (not the _marts schema)
     table_name = "account_summary"
-    full_table_name = f"{databricks.catalog}.{databricks.schema}.{table_name}"
+    target_schema = databricks.schema  # e.g., "default"
+    full_table_name = f"{databricks.catalog}.{target_schema}.{table_name}"
     
     context.log.info(
         f"Loading {len(account_summary)} rows to Databricks table {full_table_name}"
@@ -436,6 +441,10 @@ def account_summary_to_databricks(
                 cursor = conn.cursor()
                 
                 try:
+                    # Create schema if it doesn't exist
+                    context.log.info(f"Creating schema if not exists: {databricks.catalog}.{target_schema}")
+                    cursor.execute(f"CREATE SCHEMA IF NOT EXISTS {databricks.catalog}.{target_schema}")
+                    
                     # Create table if it doesn't exist
                     # First, generate CREATE TABLE statement from DataFrame schema
                     column_defs = []
@@ -480,12 +489,20 @@ def account_summary_to_databricks(
                             for val in row:
                                 if pd.isna(val):
                                     values.append('NULL')
+                                elif isinstance(val, pd.Timestamp):
+                                    # Format timestamp as SQL TIMESTAMP literal
+                                    timestamp_str = val.strftime('%Y-%m-%d %H:%M:%S.%f')
+                                    values.append(f"TIMESTAMP '{timestamp_str}'")
                                 elif isinstance(val, str):
-                                    # Escape single quotes
+                                    # Escape single quotes and quote strings
                                     escaped_val = val.replace("'", "''")
                                     values.append(f"'{escaped_val}'")
-                                else:
+                                elif isinstance(val, (int, float)):
                                     values.append(str(val))
+                                else:
+                                    # For any other type, convert to string and quote
+                                    escaped_val = str(val).replace("'", "''")
+                                    values.append(f"'{escaped_val}'")
                             values_list.append(f"({', '.join(values)})")
                         
                         insert_sql = f"""
@@ -518,7 +535,7 @@ def account_summary_to_databricks(
                     context.log.info(
                         f"Table details - Rows: {loaded_rows}, "
                         f"Columns: {len(account_summary.columns)}, "
-                        f"Catalog: {databricks.catalog}, Schema: {databricks.schema}"
+                        f"Catalog: {databricks.catalog}, Schema: {target_schema}"
                     )
                     
                     # Success - add metadata and return
@@ -527,7 +544,7 @@ def account_summary_to_databricks(
                         "row_count": loaded_rows,
                         "column_count": len(account_summary.columns),
                         "catalog": databricks.catalog,
-                        "schema": databricks.schema,
+                        "schema": target_schema,
                         "execution_timestamp": datetime.now().isoformat(),
                         "attempts": attempt + 1,
                         "preview": MetadataValue.md(
@@ -624,7 +641,7 @@ def customer_profile_csv(
         catalog = os.getenv("DATABRICKS_CATALOG", "workspace")
         schema = os.getenv("DATABRICKS_SCHEMA", "default")
         
-        context.log.info(f"Reading customer_profile from Databricks: {catalog}.{schema}.customer_profile")
+        context.log.info(f"Reading customer_profile from Databricks: {catalog}.{schema}_marts.customer_profile")
         
         with sql.connect(
             server_hostname=host,
@@ -632,7 +649,7 @@ def customer_profile_csv(
             access_token=token,
         ) as conn:
             with conn.cursor() as cursor:
-                cursor.execute(f"SELECT * FROM {catalog}.{schema}.customer_profile")
+                cursor.execute(f"SELECT * FROM {catalog}.{schema}_marts.customer_profile")
                 customer_profile = cursor.fetchall_arrow().to_pandas()
                 context.log.info(f"Loaded {len(customer_profile)} rows from customer_profile table")
     else:
@@ -772,7 +789,7 @@ def customer_profile_parquet(
         catalog = os.getenv("DATABRICKS_CATALOG", "workspace")
         schema = os.getenv("DATABRICKS_SCHEMA", "default")
         
-        context.log.info(f"Reading customer_profile from Databricks: {catalog}.{schema}.customer_profile")
+        context.log.info(f"Reading customer_profile from Databricks: {catalog}.{schema}_marts.customer_profile")
         
         with sql.connect(
             server_hostname=host,
@@ -780,7 +797,7 @@ def customer_profile_parquet(
             access_token=token,
         ) as conn:
             with conn.cursor() as cursor:
-                cursor.execute(f"SELECT * FROM {catalog}.{schema}.customer_profile")
+                cursor.execute(f"SELECT * FROM {catalog}.{schema}_marts.customer_profile")
                 customer_profile = cursor.fetchall_arrow().to_pandas()
                 context.log.info(f"Loaded {len(customer_profile)} rows from customer_profile table")
     else:

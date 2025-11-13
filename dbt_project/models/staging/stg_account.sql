@@ -35,6 +35,26 @@ with source as (
     from {{ ref('src_account') }}
 ),
 
+-- Exclude records that failed validation (in quarantine)
+-- Use NOT EXISTS to handle NULLs properly
+valid_source as (
+    select
+        s.account_id,
+        s.customer_id,
+        s.balance,
+        s.account_type,
+        s.loaded_at
+    from source s
+    where not exists (
+        select 1
+        from {{ ref('quarantine_stg_account') }} q
+        where coalesce(s.account_id, '') = coalesce(q.account_id, '')
+          and coalesce(s.customer_id, '') = coalesce(q.customer_id, '')
+          and coalesce(s.balance, '') = coalesce(q.balance, '')
+          and coalesce(s.account_type, '') = coalesce(q.account_type, '')
+    )
+),
+
 cleaned as (
     select
         -- Trim whitespace from account_id (keep as string)
@@ -57,7 +77,7 @@ cleaned as (
         -- Preserve loaded_at timestamp
         loaded_at
         
-    from source
+    from valid_source
     
     -- Filter out records where balance is null or empty
     where balance is not null

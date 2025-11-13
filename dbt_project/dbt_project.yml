@@ -35,12 +35,22 @@ models:
         enforced: true
     
     # Staging layer: Light transformations, one model per source
-    # Materialized as views for no storage overhead and always fresh data
+    # Materialized as tables to ensure quarantine filtering happens before downstream access
+    # Changed from view to table to enforce dependency order with quarantine tables
     staging:
-      +materialized: view
+      +materialized: table
       +schema: staging
       +contract:
         enforced: true
+      
+      # Quarantine models must be tables and built before other staging models
+      quarantine_stg_customer:
+        +materialized: table
+        +tags: ['quarantine', 'data_quality']
+      
+      quarantine_stg_account:
+        +materialized: table
+        +tags: ['quarantine', 'data_quality']
       
     # Intermediate layer: Business logic, joins, filters
     # Materialized as incremental tables with merge strategy for CDC processing

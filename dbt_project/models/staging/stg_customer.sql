@@ -32,6 +32,24 @@ with source as (
     from {{ ref('src_customer') }}
 ),
 
+-- Exclude records that failed validation (in quarantine)
+-- Use NOT EXISTS to handle NULLs properly
+valid_source as (
+    select
+        s.customer_id,
+        s.name,
+        s.has_loan,
+        s.loaded_at
+    from source s
+    where not exists (
+        select 1
+        from {{ ref('quarantine_stg_customer') }} q
+        where coalesce(s.customer_id, '') = coalesce(q.customer_id, '')
+          and coalesce(s.name, '') = coalesce(q.name, '')
+          and coalesce(s.has_loan, '') = coalesce(q.has_loan, '')
+    )
+),
+
 cleaned as (
     select
         -- Cast customer_id to integer
@@ -50,7 +68,7 @@ cleaned as (
         -- Preserve loaded_at timestamp
         loaded_at
         
-    from source
+    from valid_source
 )
 
 select * from cleaned

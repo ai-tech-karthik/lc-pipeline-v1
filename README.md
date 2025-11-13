@@ -333,6 +333,12 @@ The pipeline is fully containerized with Docker Compose for easy deployment:
 ![Docker Containers Architecture](docker-containers.png)
 
 ```bash
+# To build fresh docker images (no cache to ensure all changes are include
+docker-compose build  –-no-cache
+
+# For any change in the pipeline asserts
+docker-compose build --no-cache dagster-user-code
+
 # Start all containers (Dagster, PostgreSQL, DBT)
 docker-compose up -d
 

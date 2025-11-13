@@ -15,9 +15,9 @@
 */
 
 select
-    AccountID as account_id,
-    CustomerID as customer_id,
-    Balance as balance,
-    AccountType as account_type,
+    cast(AccountID as string) as account_id,
+    cast(CustomerID as string) as customer_id,
+    cast(Balance as string) as balance,
+    cast(AccountType as string) as account_type,
     current_timestamp() as loaded_at
 from {{ source('raw', 'accounts_raw') }}

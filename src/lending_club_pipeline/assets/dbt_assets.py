@@ -238,6 +238,7 @@ class CustomDagsterDbtTranslator(DagsterDbtTranslator):
             enable_duplicate_source_asset_keys=False,
         )
     ),
+    name="dbt_transformations",
 )
 def dbt_transformations(context: AssetExecutionContext, dbt: DbtCliResource):
     """
@@ -284,9 +285,9 @@ def dbt_transformations(context: AssetExecutionContext, dbt: DbtCliResource):
         try:
             # Step 1: Execute DBT build command which runs models, snapshots, and tests in correct order
             # DBT automatically handles dependencies and runs in topological order
-            # Exclude quarantine models as they are optional error handling tables
+            # Include quarantine models as they are needed to filter staging tables
             context.log.info("Step 1: Executing DBT build (models + snapshots + tests)")
-            dbt_args = ["build", "--exclude", "quarantine_*"]
+            dbt_args = ["build"]
             
             context.log.info(f"DBT command: dbt {' '.join(dbt_args)}")
             

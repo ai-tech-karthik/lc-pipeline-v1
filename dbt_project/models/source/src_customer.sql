@@ -15,8 +15,8 @@
 */
 
 select
-    CustomerID as customer_id,
-    Name as name,
-    HasLoan as has_loan,
+    cast(CustomerID as string) as customer_id,
+    cast(Name as string) as name,
+    cast(HasLoan as string) as has_loan,
     current_timestamp() as loaded_at
 from {{ source('raw', 'customers_raw') }}
